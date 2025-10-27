@@ -1,0 +1,8 @@
+ar/sizpope/App.class
+ar/sizpope/service/AuthService.class
+ar/sizpope/config/Db.class
+ar/sizpope/repository/UserRepository.class
+ar/sizpope/controller/LoginController.class
+ar/sizpope/controller/DashboardController.class
+ar/sizpope/domain/User.class
+ar/sizpope/config/Env.class

@@ -1,66 +1,141 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" 
+<project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
+
   <groupId>ar.sizpope</groupId>
   <artifactId>sizpope-javafx</artifactId>
   <version>0.1.0</version>
   <name>SIZPOPE JavaFX</name>
+  <description>Aplicación de escritorio JavaFX para SIZPOPE con MySQL</description>
+  <url>https://example.local/sizpope</url>
+  <packaging>jar</packaging>
+
   <properties>
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!-- Versiones de librerías -->
     <javafx.version>21.0.5</javafx.version>
+    <mysql.version>9.1.0</mysql.version>
+    <slf4j.version>2.0.16</slf4j.version>
+    <jbcrypt.version>0.4</jbcrypt.version>
+
+    <!-- Clasificador nativo para JavaFX; lo setean los perfiles por SO/arquitectura -->
+    <javafx.platform>linux</javafx.platform>
   </properties>
 
+  <!-- Perfiles para elegir automáticamente el classifier correcto de JavaFX -->
+  <profiles>
+    <!-- Windows x64 -->
+    <profile>
+      <id>windows-x64</id>
+      <activation>
+        <os>
+          <family>Windows</family>
+          <arch>x86_64</arch>
+        </os>
+      </activation>
+      <properties>
+        <javafx.platform>win</javafx.platform>
+      </properties>
+    </profile>
+
+    <!-- Linux x64 -->
+    <profile>
+      <id>linux-x64</id>
+      <activation>
+        <os>
+          <family>unix</family>
+          <name>Linux</name>
+          <arch>x86_64</arch>
+        </os>
+      </activation>
+      <properties>
+        <javafx.platform>linux</javafx.platform>
+      </properties>
+    </profile>
+
+    <!-- macOS Intel -->
+    <profile>
+      <id>mac-x64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>x86_64</arch>
+        </os>
+      </activation>
+      <properties>
+        <javafx.platform>mac</javafx.platform>
+      </properties>
+    </profile>
+
+    <!-- macOS Apple Silicon -->
+    <profile>
+      <id>mac-aarch64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <javafx.platform>mac-aarch64</javafx.platform>
+      </properties>
+    </profile>
+  </profiles>
+
   <dependencies>
-    <!-- JavaFX -->
+    <!-- JavaFX (usar classifier según SO/arquitectura) -->
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-controls</artifactId>
       <version>${javafx.version}</version>
+      <classifier>${javafx.platform}</classifier>
     </dependency>
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-fxml</artifactId>
       <version>${javafx.version}</version>
+      <classifier>${javafx.platform}</classifier>
     </dependency>
 
-    <!-- MySQL JDBC -->
+    <!-- JDBC MySQL -->
     <dependency>
       <groupId>com.mysql</groupId>
       <artifactId>mysql-connector-j</artifactId>
-      <version>9.1.0</version>
+      <version>${mysql.version}</version>
     </dependency>
 
     <!-- Logging simple -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
-      <version>2.0.16</version>
+      <version>${slf4j.version}</version>
     </dependency>
 
-    <!-- BCrypt para password -->
+    <!-- BCrypt para verificación de contraseña -->
     <dependency>
       <groupId>org.mindrot</groupId>
       <artifactId>jbcrypt</artifactId>
-      <version>0.4</version>
+      <version>${jbcrypt.version}</version>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <!-- Compilador -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.11.0</version>
         <configuration>
-          <release>17</release>
+          <release>${maven.compiler.release}</release>
         </configuration>
       </plugin>
 
-      <!-- Ejecutar con: mvn javafx:run -->
+      <!-- Ejecutar en desarrollo: mvn javafx:run -->
       <plugin>
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-maven-plugin</artifactId>
@@ -70,29 +145,40 @@
         </configuration>
       </plugin>
 
-      <!-- Empaquetar JAR con dependencias -->
+      <!-- Fat JAR listo para java -jar target/*-shaded.jar -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.6.0</version>
-        <configuration>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
-          <archive>
-            <manifest>
-              <mainClass>ar.sizpope.App</mainClass>
-            </manifest>
-          </archive>
-        </configuration>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.3</version>
         <executions>
           <execution>
-            <id>make-assembly</id>
             <phase>package</phase>
-            <goals><goal>single</goal></goals>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <filters>
+                <!-- Excluir firmas para evitar warnings -->
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>ar.sizpope.App</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
           </execution>
         </executions>
       </plugin>
     </plugins>
   </build>
 </project>
+
