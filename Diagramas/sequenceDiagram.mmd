@@ -1,0 +1,305 @@
+sequenceDiagram
+  title CU-01 Registrar Usuario
+  participant UserUI
+  participant AuthService
+  participant UserRepository
+  participant MailService
+  participant AuditLog
+  UserUI->>AuthService: submit(email, pw)
+  AuthService->>UserRepository: checkEmailUnique(email)
+  UserRepository-->>AuthService: ok
+  AuthService->>UserRepository: createUser(email, hash, role)
+  UserRepository-->>AuthService: userId
+  AuthService->>MailService: sendVerification(userId, token)
+  MailService-->>AuthService: queued
+  AuthService->>AuditLog: log(register, userId)
+  AuthService-->>UserUI: success
+  
+ 
+sequenceDiagram
+  title CU-02 Iniciar sesión
+  participant UserUI
+  participant AuthService
+  participant UserRepository
+  participant TokenService
+  participant AuditLog
+  UserUI->>AuthService: login(email, pw)
+  AuthService->>UserRepository: findByEmail(email)
+  UserRepository-->>AuthService: user, passHash, status
+  AuthService->>TokenService: issue(userId, roles)
+  TokenService-->>AuthService: token
+  AuthService->>AuditLog: log(login_success, userId)
+  AuthService-->>UserUI: token
+  
+ 
+sequenceDiagram
+  title CU-03 Crear AOI
+  participant UserUI
+  participant AOIService
+  participant AOIRepository
+  participant AuditLog
+  UserUI->>AOIService: createAOI(geojson, name, species)
+  AOIService->>AOIRepository: validateAndSave(aoi)
+  AOIRepository-->>AOIService: aoiId
+  AOIService->>AuditLog: log(aoi_create, aoiId)
+  AOIService-->>UserUI: ok(aoiId)
+  
+ 
+sequenceDiagram
+  title CU-04 Editar área de interés (AOI)
+  participant UserUI
+  participant AOIService
+  participant AOIRepository
+  participant AuditLog
+  UserUI->>AOIService: updateAOI(id, changes)
+  AOIService->>AOIRepository: findById(id)
+  AOIRepository-->>AOIService: aoi
+  AOIService->>AOIRepository: save(aoi*)
+  AOIRepository-->>AOIService: ok
+  AOIService->>AuditLog: log(aoi_update, id)
+  AOIService-->>UserUI: ok
+  
+ 
+sequenceDiagram
+  title CU-05 Eliminar AOI
+  participant UserUI
+  participant AOIService
+  participant AOIRepository
+  participant AuditLog
+  UserUI->>AOIService: deleteAOI(id)
+  AOIService->>AOIRepository: softDelete(id)
+  AOIRepository-->>AOIService: ok
+  AOIService->>AuditLog: log(aoi_delete, id)
+  AOIService-->>UserUI: ok
+  
+ 
+sequenceDiagram
+  title CU-06 Ingerir SST (L2)
+  participant Scheduler
+  participant IngestionSSTService
+  participant RemoteCatalog
+  participant StorageService
+  participant SceneRepository
+  participant AuditLog
+  Scheduler->>IngestionSSTService: run()
+  IngestionSSTService->>RemoteCatalog: listL2(SST, window)
+  RemoteCatalog-->>IngestionSSTService: files[]
+  IngestionSSTService->>StorageService: download(files[])
+  StorageService-->>IngestionSSTService: storedURIs[]
+  IngestionSSTService->>SceneRepository: registerScenes(meta, URIs)
+  SceneRepository-->>IngestionSSTService: ok
+  IngestionSSTService->>AuditLog: log(sst_ingest, count)
+  
+ 
+sequenceDiagram
+  title CU-07 Ingerir Chl-a (L2)
+  participant Scheduler
+  participant IngestionChlaService
+  participant RemoteCatalog
+  participant StorageService
+  participant SceneRepository
+  participant AuditLog
+  Scheduler->>IngestionChlaService: run()
+  IngestionChlaService->>RemoteCatalog: listL2(Chla, window)
+  RemoteCatalog-->>IngestionChlaService: files[]
+  IngestionChlaService->>StorageService: download(files[])
+  StorageService-->>IngestionChlaService: storedURIs[]
+  IngestionChlaService->>SceneRepository: registerScenes(meta, URIs)
+  SceneRepository-->>IngestionChlaService: ok
+  IngestionChlaService->>AuditLog: log(chla_ingest, count)
+  
+ 
+sequenceDiagram
+  title CU-08 Calcular PFZ
+  participant PFZModelService
+  participant SceneRepository
+  participant SpeciesParamRepository
+  participant RasterEngine
+  participant PFZRunRepository
+  participant TileCache
+  participant AuditLog
+  PFZModelService->>SceneRepository: load(SST, window)
+  SceneRepository-->>PFZModelService: sstRaster
+  PFZModelService->>SceneRepository: load(Chla, window)
+  SceneRepository-->>PFZModelService: chlaRaster
+  PFZModelService->>SpeciesParamRepository: getBySpecies(species)
+  SpeciesParamRepository-->>PFZModelService: params
+  PFZModelService->>RasterEngine: computePFZ(sst, chla, params)
+  RasterEngine-->>PFZModelService: pfzRaster
+  PFZModelService->>PFZRunRepository: saveRun(meta, pfzRaster)
+  PFZRunRepository-->>PFZModelService: runId
+  PFZModelService->>TileCache: prewarm(runId)
+  TileCache-->>PFZModelService: ok
+  PFZModelService->>AuditLog: log(pfz_run, runId)
+  
+ 
+sequenceDiagram
+  title CU-09 Publicar tiles PFZ
+  participant MapPublisher
+  participant PFZRunRepository
+  participant TileCache
+  participant WMTSRegistry
+  participant AuditLog
+  MapPublisher->>PFZRunRepository: find(runId)
+  PFZRunRepository-->>MapPublisher: pfzRaster
+  MapPublisher->>TileCache: generate(pfzRaster)
+  TileCache-->>MapPublisher: ok
+  MapPublisher->>WMTSRegistry: registerLayer(runId, style, legend)
+  WMTSRegistry-->>MapPublisher: ok
+  MapPublisher->>AuditLog: log(wmts_publish, runId)
+  
+ 
+sequenceDiagram
+  title CU-10 Ver mapa PFZ
+  participant UserUI
+  participant MapGateway
+  participant WMTSRegistry
+  participant TileCache
+  UserUI->>MapGateway: enableLayer("PFZ")
+  MapGateway->>WMTSRegistry: resolve("PFZ")
+  WMTSRegistry-->>MapGateway: wmtsURL
+  UserUI->>TileCache: GET /tiles/PFZ/{z}/{x}/{y}
+  TileCache-->>UserUI: tile
+  
+ 
+sequenceDiagram
+  title CU-11 Ver mapa SST
+  participant UserUI
+  participant MapGateway
+  participant WMTSRegistry
+  participant TileCache
+  UserUI->>MapGateway: enableLayer("SST")
+  MapGateway->>WMTSRegistry: resolve("SST")
+  WMTSRegistry-->>MapGateway: wmtsURL
+  UserUI->>TileCache: GET /tiles/SST/{z}/{x}/{y}
+  TileCache-->>UserUI: tile
+  
+ 
+sequenceDiagram
+  title CU-12 Ver mapa Chl-a
+  participant UserUI
+  participant MapGateway
+  participant WMTSRegistry
+  participant TileCache
+  UserUI->>MapGateway: enableLayer("CHLA")
+  MapGateway->>WMTSRegistry: resolve("CHLA")
+  WMTSRegistry-->>MapGateway: wmtsURL
+  UserUI->>TileCache: GET /tiles/CHLA/{z}/{x}/{y}
+  TileCache-->>UserUI: tile
+  
+ 
+sequenceDiagram
+  title CU-13 Inspeccionar celda
+  participant UserUI
+  participant IdentifyService
+  participant PFZRunRepository
+  participant SceneRepository
+  UserUI->>IdentifyService: identify(lat, lon, date)
+  IdentifyService->>PFZRunRepository: getPFZ(date, lat, lon)
+  PFZRunRepository-->>IdentifyService: pfzValue, meta
+  IdentifyService->>SceneRepository: getSST(date, lat, lon)
+  SceneRepository-->>IdentifyService: sst
+  IdentifyService->>SceneRepository: getCHLA(date, lat, lon)
+  SceneRepository-->>IdentifyService: chla
+  IdentifyService-->>UserUI: {pfz, sst, chla, meta}
+  
+ 
+sequenceDiagram
+  title CU-14 Configurar suscripción
+  participant UserUI
+  participant SubscriptionService
+  participant AOIRepository
+  participant SubscriptionRepository
+  participant AuditLog
+  UserUI->>SubscriptionService: createOrUpdate(species, threshold, aoiId, freq)
+  SubscriptionService->>AOIRepository: exists(aoiId, userId)
+  AOIRepository-->>SubscriptionService: ok
+  SubscriptionService->>SubscriptionRepository: save(subscription)
+  SubscriptionRepository-->>SubscriptionService: subId
+  SubscriptionService->>AuditLog: log(sub_upsert, subId)
+  SubscriptionService-->>UserUI: ok(subId)
+  
+ 
+sequenceDiagram
+  title CU-15 Recibir alerta PFZ
+  participant AlertEngine
+  participant SubscriptionRepository
+  participant PFZRunRepository
+  participant AOIRepository
+  participant AlertRepository
+  participant NotificationService
+  participant AuditLog
+  AlertEngine->>SubscriptionRepository: listActive()
+  SubscriptionRepository-->>AlertEngine: subs[]
+  AlertEngine->>PFZRunRepository: getLatestRun()
+  PFZRunRepository-->>AlertEngine: runId
+  AlertEngine->>AOIRepository: intersect(runId, subs)
+  AOIRepository-->>AlertEngine: hits[]
+  AlertEngine->>AlertRepository: createAlerts(hits[])
+  AlertRepository-->>AlertEngine: alerts[]
+  AlertEngine->>NotificationService: send(alerts[])
+  NotificationService-->>AlertEngine: queued
+  AlertEngine->>AuditLog: log(alerts_sent, count)
+  
+ 
+sequenceDiagram
+  title CU-16 Consultar histórico PFZ
+  participant UserUI
+  participant HistoryService
+  participant PFZRunRepository
+  participant ExportService
+  UserUI->>HistoryService: query(range, aoiId)
+  HistoryService->>PFZRunRepository: find(range, aoiId)
+  PFZRunRepository-->>HistoryService: runs[]
+  HistoryService-->>UserUI: render(runs[])
+  UserUI->>ExportService: export(runs[], format)
+  ExportService-->>UserUI: downloadURL
+  
+ 
+sequenceDiagram
+  title CU-17 Habilitar nueva fuente satelital
+  participant AdminUI
+  participant ProductService
+  participant ConnectorService
+  participant ProductRepository
+  participant AuditLog
+  AdminUI->>ProductService: addSource(platform, sensor, vars, endpoint)
+  ProductService->>ConnectorService: test(endpoint, creds)
+  ConnectorService-->>ProductService: ok
+  ProductService->>ProductRepository: save(product)
+  ProductRepository-->>ProductService: productId
+  ProductService->>AuditLog: log(product_add, productId)
+  ProductService-->>AdminUI: ok(productId)
+  
+ 
+sequenceDiagram
+  title CU-18 Editar usuario (admin)
+  participant AdminUI
+  participant UserAdminService
+  participant UserRepository
+  participant AuditLog
+  AdminUI->>UserAdminService: update(userId, changes)
+  UserAdminService->>UserRepository: updateUser(userId, changes)
+  UserRepository-->>UserAdminService: ok
+  UserAdminService->>AuditLog: log(admin_user_update, userId)
+  UserAdminService-->>AdminUI: ok
+  
+  
+ 
+sequenceDiagram
+  title CU-19 Exportar PFZ
+  participant UserUI
+  participant ExportService
+  participant PFZRunRepository
+  participant Clipper
+  participant StorageService
+  participant AuditLog
+  UserUI->>ExportService: export(area, range, format)
+  ExportService->>PFZRunRepository: collect(range, area)
+  PFZRunRepository-->>ExportService: rasters[]
+  ExportService->>Clipper: clip(rasters[], area)
+  Clipper-->>ExportService: subset
+  ExportService->>StorageService: write(subset, format, CRS=EPSG:4326, meta)
+  StorageService-->>ExportService: url
+  ExportService->>AuditLog: log(export, url)
+  ExportService-->>UserUI: downloadURL(url)

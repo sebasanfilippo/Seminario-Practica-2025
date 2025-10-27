@@ -1,0 +1,100 @@
+%% ========== GEO ==========
+  geo_aoi {
+    char(36) id PK
+    char(36) user_id FK
+    varchar name
+    varchar species
+    geometry(4326) geom
+    geometry(4326) bbox
+    datetime created_at
+    datetime updated_at
+    datetime deleted_at
+  }
+
+  %% ========== CORE ==========
+  core_product_source {
+    char(36) id PK
+    varchar platform
+    varchar sensor
+    json variables
+    text endpoint
+    boolean enabled
+    datetime created_at
+    datetime updated_at
+  }
+  core_species_param {
+    char(36) id PK
+    varchar species UK
+    decimal sst_min
+    decimal sst_max
+    decimal chla_min
+    decimal chla_max
+    decimal weight_sst
+    decimal weight_chla
+  }
+  core_pfz_run {
+    char(36) id PK
+    varchar species FK
+    datetime window_start
+    datetime window_end
+    datetime run_time
+    decimal quality
+    text raster_uri
+    varchar tile_cache_key
+    geometry(4326) bbox
+    datetime created_at
+  }
+
+  %% ========== CATALOG ==========
+  catalog_scene {
+    char(36) id PK
+    char(36) product_id FK
+    enum var_name
+    date acq_date
+    datetime acq_time
+    geometry(4326) footprint
+    decimal coverage_pct
+    text uri
+    varchar checksum
+    datetime created_at
+  }
+
+  %% ========== ALERTS ==========
+  alerts_subscription {
+    char(36) id PK
+    char(36) user_id FK
+    char(36) aoi_id FK
+    varchar species FK
+    decimal threshold
+    varchar frequency
+    boolean enabled
+    datetime created_at
+    datetime updated_at
+  }
+  alerts_alert {
+    char(36) id PK
+    char(36) subscription_id FK
+    char(36) pfz_run_id FK
+    decimal pfz_value
+    datetime trigger_time
+    boolean delivered
+    datetime delivery_time
+    varchar channel
+    json metadata
+  }
+
+  %% ========== RELATIONSHIPS ==========
+  auth_user ||--o{ auth_user_role : has
+  auth_role ||--o{ auth_user_role : granted_to
+  auth_user ||--o{ auth_token : owns
+
+  auth_user ||--o{ geo_aoi : owns
+  core_product_source ||--o{ catalog_scene : provides
+  core_species_param ||--o{ core_pfz_run : parameter_of
+
+  alerts_subscription }o--|| geo_aoi : for
+  alerts_subscription }o--|| auth_user : belongs_to
+  alerts_subscription }o--|| core_species_param : targets
+
+  alerts_alert }o--|| alerts_subscription : emitted_for
+  alerts_alert }o--|| core_pfz_run : based_on

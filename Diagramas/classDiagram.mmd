@@ -1,0 +1,382 @@
+classDiagram
+direction LR
+
+%% ======== UI / Gateways ========
+class UserUI{
+  +submit(email, pw): void
+  +login(email, pw): void
+  +enableLayer(name: string): void
+  +identify(lat: double, lon: double, date: string): void
+}
+%% note for UserUI "boundary"
+
+class AdminUI{
+  +addSource(platform, sensor, vars, endpoint): void
+  +update(userId, changes): void
+}
+%% note for AdminUI "boundary"
+
+
+class MapGateway{
+  +enableLayer(name: string): void
+  +resolve(name: string): string
+}
+%% note for MapGateway "boundary"
+
+
+%% ======== Servicios de aplicación / Controladores de CU ========
+class AuthService{
+  +submit(email: string, pw: string): string
+  +login(email: string, pw: string): string
+}
+%% note for AuthService "control"
+
+
+class AOIService{
+  +createAOI(geojson: string, name: string, species: string): string
+  +updateAOI(id: string, changes: string): bool
+  +deleteAOI(id: string): bool
+}
+%% note for AOIService "control"
+
+
+class IngestionSSTService{
+  +run(): void
+}
+%% note for IngestionSSTService "control"
+
+
+class IngestionChlaService{
+  +run(): void
+}
+%% note for IngestionChlaService "control"
+
+
+class PFZModelService{
+  +compute(species: string, window: string): string
+}
+%% note for PFZModelService "control"
+
+
+class MapPublisher{
+  +publish(runId: string, style: string, legend: string): bool
+}
+%% note for MapPublisher "control"
+
+
+class IdentifyService{
+  +identify(lat: double, lon: double, date: string): string
+}
+%% note for IdentifyService "control"
+
+
+class SubscriptionService{
+  +createOrUpdate(species: string, threshold: double, aoiId: string, freq: string): string
+}
+%% note for SubscriptionService "control"
+
+
+class AlertEngine{
+  +process(): int
+}
+%% note for AlertEngine "control"
+
+
+class HistoryService{
+  +query(range: string, aoiId: string): string
+}
+%% note for HistoryService "control"
+
+
+class ProductService{
+  +addSource(platform: string, sensor: string, vars: string, endpoint: string): string
+}
+%% note for ProductService "control"
+
+
+class UserAdminService{
+  +update(userId: string, changes: string): bool
+}
+%% note for UserAdminService "control"
+
+
+class ExportService{
+  +export(area: string, range: string, format: string): string
+}
+%% note for ExportService "control"
+
+
+%% ======== Boundaries (Repos/Infra/Externos) ========
+class UserRepository{
+  +checkEmailUnique(email: string): bool
+  +createUser(email: string, hash: string, role: string): string
+  +findByEmail(email: string): string
+  +updateUser(userId: string, changes: string): bool
+}
+%% note for UserRepository "boundary"
+
+
+class AOIRepository{
+  +validateAndSave(aoi: string): string
+  +findById(id: string): string
+  +save(aoi: string): bool
+  +softDelete(id: string): bool
+  +exists(aoiId: string, userId: string): bool
+  +intersect(runId: string, subs: string): string
+}
+%% note for AOIRepository "boundary"
+
+
+class SceneRepository{
+  +registerScenes(meta: string, uris: string): bool
+  +load(varname: string, window: string): string
+  +getSST(date: string, lat: double, lon: double): double
+  +getCHLA(date: string, lat: double, lon: double): double
+}
+%% note for SceneRepository "boundary"
+
+
+class SpeciesParamRepository{
+  +getBySpecies(species: string): string
+}
+%% note for SpeciesParamRepository "boundary"
+
+
+class PFZRunRepository{
+  +saveRun(meta: string, pfzRaster: string): string
+  +find(runId: string): string
+  +getLatestRun(): string
+  +getPFZ(date: string, lat: double, lon: double): string
+  +findByRange(range: string, aoiId: string): string
+  +collect(range: string, area: string): string
+}
+%% note for PFZRunRepository "boundary"
+
+
+class SubscriptionRepository{
+  +save(subscription: string): string
+  +listActive(): string
+}
+%% note for SubscriptionRepository "boundary"
+
+
+class AlertRepository{
+  +createAlerts(hits: string): string
+}
+%% note for AlertRepository "boundary"
+
+
+class RemoteCatalog{
+  +listL2(varname: string, window: string): string
+}
+%% note for RemoteCatalog "boundary"
+
+
+class StorageService{
+  +download(files: string): string
+  +write(subset: string, format: string, CRS: string, meta: string): string
+}
+%% note for StorageService "boundary"
+
+
+class RasterEngine{
+  +computePFZ(sst: string, chla: string, params: string): string
+}
+%% note for RasterEngine "boundary"
+
+
+class TileCache{
+  +generate(pfzRaster: string): bool
+  +prewarm(runId: string): bool
+  +getTile(path: string): string
+}
+%% note for TileCache "boundary"
+
+
+class WMTSRegistry{
+  +registerLayer(runId: string, style: string, legend: string): bool
+  +resolve(name: string): string
+}
+%% note for WMTSRegistry "boundary"
+
+
+class TokenService{
+  +issue(userId: string, roles: string): string
+}
+%% note for TokenService "boundary"
+
+
+class MailService{
+  +sendVerification(userId: string, token: string): string
+}
+%% note for MailService "boundary"
+
+
+class NotificationService{
+  +send(alerts: string): string
+}
+%% note for NotificationService "boundary"
+
+
+class ConnectorService{
+  +test(endpoint: string, creds: string): bool
+}
+%% note for ConnectorService "boundary"
+
+
+class Clipper{
+  +clip(rasters: string, area: string): string
+}
+%% note for Clipper "boundary"
+
+
+class AuditLog{
+  +log(event: string, refId: string): void
+}
+%% note for AuditLog "boundary"
+
+
+%% ======== Entidades principales (estado del dominio) ========
+class User{
+  +id: string
+  +email: string
+  +passwordHash: string
+  +status: string
+  +roles: string
+}
+%% note for User "entity"
+
+
+class AOI{
+  +id: string
+  +name: string
+  +geometry: string
+  +species: string
+  +ownerId: string
+}
+%% note for AOI "entity"
+
+
+class Scene{
+  +sceneId: string
+  +type: string  %% SST|CHLA
+  +acqTime: string
+  +bbox: string
+  +coverage: double
+  +uri: string
+}
+%% note for Scene "entity"
+
+
+class PFZRun{
+  +runId: string
+  +runTime: string
+  +windowStart: string
+  +windowEnd: string
+  +species: string
+  +quality: double
+}
+%% note for PFZRun "entity"
+
+
+class PFZRaster{
+  +crs: string
+  +resolutionDeg: double
+  +stats: string
+}
+%% note for PFZRaster "entity"
+
+
+class Subscription{
+  +id: string
+  +userId: string
+  +aoiId: string
+  +species: string
+  +threshold: double
+  +frequency: string
+}
+%% note for Subscription "entity"
+
+
+class Alert{
+  +alertId: string
+  +subscriptionId: string
+  +pfzValue: double
+  +triggerTime: string
+}
+%% note for Alert "entity"
+
+
+class ProductSource{
+  +productId: string
+  +platform: string
+  +sensor: string
+  +variables: string
+  +endpoint: string
+  +enabled: bool
+}
+%% note for ProductSource "entity"
+
+
+%% ======== Relaciones mínimas relevantes ========
+AuthService ..> UserRepository : usa
+AuthService ..> MailService : usa
+AuthService ..> AuditLog : usa
+AuthService ..> TokenService : usa
+
+AOIService ..> AOIRepository : usa
+AOIService ..> AuditLog : usa
+
+IngestionSSTService ..> RemoteCatalog : usa
+IngestionSSTService ..> StorageService : usa
+IngestionSSTService ..> SceneRepository : usa
+IngestionSSTService ..> AuditLog : usa
+
+IngestionChlaService ..> RemoteCatalog : usa
+IngestionChlaService ..> StorageService : usa
+IngestionChlaService ..> SceneRepository : usa
+IngestionChlaService ..> AuditLog : usa
+
+PFZModelService ..> SceneRepository : usa
+PFZModelService ..> SpeciesParamRepository : usa
+PFZModelService ..> RasterEngine : usa
+PFZModelService ..> PFZRunRepository : usa
+PFZModelService ..> TileCache : usa
+PFZModelService ..> AuditLog : usa
+
+MapPublisher ..> PFZRunRepository : usa
+MapPublisher ..> TileCache : usa
+MapPublisher ..> WMTSRegistry : usa
+MapPublisher ..> AuditLog : usa
+
+MapGateway ..> WMTSRegistry : usa
+UserUI ..> MapGateway : usa
+UserUI ..> TileCache : GET tiles
+
+IdentifyService ..> PFZRunRepository : usa
+IdentifyService ..> SceneRepository : usa
+
+SubscriptionService ..> AOIRepository : usa
+SubscriptionService ..> SubscriptionRepository : usa
+SubscriptionService ..> AuditLog : usa
+
+AlertEngine ..> SubscriptionRepository : usa
+AlertEngine ..> PFZRunRepository : usa
+AlertEngine ..> AOIRepository : usa
+AlertEngine ..> AlertRepository : usa
+AlertEngine ..> NotificationService : usa
+AlertEngine ..> AuditLog : usa
+
+HistoryService ..> PFZRunRepository : usa
+UserUI ..> ExportService : usa
+ExportService ..> PFZRunRepository : usa
+ExportService ..> Clipper : usa
+ExportService ..> StorageService : usa
+ExportService ..> AuditLog : usa
+
+ProductService ..> ConnectorService : usa
+ProductService ..> ProductRepository : usa
+ProductService ..> AuditLog : usa
+
+UserAdminService ..> UserRepository : usa
+UserAdminService ..> AuditLog : usa

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox xmlns:fx="http://javafx.com/fxml" fx:controller="ar.sizpope.controller.DashboardController" spacing="12" style="-fx-padding:24;">
+  <Label text="SIZPOPE — Dashboard"/>
+  <Label fx:id="statusLabel"/>
+  <Separator/>
+  <Label text="(Placeholder) Aquí iría el visor GIS, capas PFZ/SST/Chl-a y formularios AOI/Suscripción."/>
+</VBox>
+
